@@ -100,7 +100,9 @@ def get_inception_score(sess, images, pred_op):
             # print('*****', img.shape)
             img = preprocess(img)
             inp.append(img)
-        # print("%d of %d batches" % (i, n_batches))
+        if i%10 == 0:
+            sys.stdout.write("\r%d of %d batches" % (i, n_batches))
+            sys.stdout.flush()
         # inp = inps[(i * bs):min((i + 1) * bs, len(inps))]
         inp = np.concatenate(inp, 0)
         #  print('inp', inp.shape)
@@ -124,7 +126,7 @@ def get_inception_score(sess, images, pred_op):
 
 
 def load_data(fullpath):
-    print(fullpath)
+    print("load image form: ", fullpath)
     images = []
     for path, subdirs, files in os.walk(fullpath):
         for name in files:

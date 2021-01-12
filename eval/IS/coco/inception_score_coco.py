@@ -15,6 +15,7 @@ import glob
 import scipy.misc
 import math
 import sys
+import time
 
 from tensorflow.python.platform.tf_logging import flush
 
@@ -33,17 +34,19 @@ def get_inception_score(images, splits=10):
     bs = 100
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True
+    start_t = time.time()
     with tf.Session(config=config) as sess:
         preds = []
         n_batches = int(math.ceil(float(len(inps)) / float(bs)))
         print(" ")
         for i in range(n_batches):
             if i % 100 == 0:
-                sys.stdout.write("\r[Running] [{}/{}] ...   ".format(i * bs, len(inps)))
+                sys.stdout.write("\r[Running] [{}/{}] (time: {:.2f}) ...   ".format(i * bs, len(inps), time.time()-start_t))
                 sys.stdout.flush()
             inp = []
-            for j in range(bs):
-                img = scipy.misc.imread(inps[i*bs+j])
+            start_idx, end_idx = i*bs, min((i+1)*bs, len(inps))
+            for j in range(start_idx, end_idx):
+                img = scipy.misc.imread(inps[j])
                 img = preprocess(img)
                 inp.append(img)
             #inp = inps[(i * bs):min((i + 1) * bs, len(inps))]

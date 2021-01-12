@@ -48,6 +48,7 @@ import torch.utils.data
 from PIL import Image
 from torch.utils import data
 import img_data as img_data
+import sys 
 
 parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
 #parser.add_argument('path', type=str, nargs=2,
@@ -89,8 +90,8 @@ def get_activations(images, model, batch_size=64, dims=2048, cuda=False, verbose
 
     d0 = images.__len__() * batch_size
     if batch_size > d0:
-        print(('Warning: batch size is bigger than the data size. '
-               'Setting batch size to data size'))
+        print('Warning: batch size is bigger than the data size. '
+               'Setting batch size to data size')
         batch_size = d0
 
     n_batches = d0 // batch_size
@@ -101,7 +102,8 @@ def get_activations(images, model, batch_size=64, dims=2048, cuda=False, verbose
     for i, batch in enumerate(images):
         #batch = batch[0]
         if verbose and (batch % (n_batches//10) == 0):
-            print('\rPropagating batch %d/%d' % (i + 1, n_batches), end='', flush=True)
+            sys.stdout.write('\rPropagating batch %d/%d' % (i + 1, n_batches))
+            sys.stdout.flush()
         #import ipdb
         #ipdb.set_trace()
         start = i * batch_size
