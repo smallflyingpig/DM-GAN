@@ -61,8 +61,8 @@ parser.add_argument('--dims', type=int, default=2048,
                           'By default, uses pool3 features'))
 parser.add_argument('-c', '--gpu', default='', type=str,
                     help='GPU to use (leave blank for CPU only)')
-parser.add_argument('--path1', type=str, default=64)
-parser.add_argument('--path2', type=str, default=64)
+parser.add_argument('--path1', type=str, default="")
+parser.add_argument('--path2', type=str, default="")
 
 def get_activations(images, model, batch_size=64, dims=2048, cuda=False, verbose=True):
     """Calculates the activations of the pool_3 layer for all images.
@@ -100,8 +100,8 @@ def get_activations(images, model, batch_size=64, dims=2048, cuda=False, verbose
     #for i in range(n_batches):
     for i, batch in enumerate(images):
         #batch = batch[0]
-        #if verbose:
-            #print('\rPropagating batch %d/%d' % (i + 1, n_batches), end='', flush=True)
+        if verbose and (batch % (n_batches//10) == 0):
+            print('\rPropagating batch %d/%d' % (i + 1, n_batches), end='', flush=True)
         #import ipdb
         #ipdb.set_trace()
         start = i * batch_size

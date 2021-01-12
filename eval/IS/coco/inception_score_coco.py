@@ -1,4 +1,5 @@
 # Code derived from tensorflow/tensorflow/models/image/imagenet/classify_image.py
+# reference: https://github.com/MarcosPividori/improved-gan/commit/0a09faccb45088695228bbf50435ee71e94eb2ce
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -15,10 +16,11 @@ import scipy.misc
 import math
 import sys
 
+from tensorflow.python.platform.tf_logging import flush
+
 MODEL_DIR = '/tmp/imagenet'
 DATA_URL = 'http://download.tensorflow.org/models/image/imagenet/inception-2015-12-05.tgz'
 softmax = None
-
 
 # Call this function with list of images. Each of elements should be a
 # numpy array with values ranging from 0 to 255.
@@ -28,7 +30,7 @@ def get_inception_score(images, splits=10):
     #assert (np.max(images[0]) > 10)
     #assert (np.min(images[0]) >= 0.0)
     inps = images
-    bs = 1
+    bs = 100
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True
     with tf.Session(config=config) as sess:
@@ -38,6 +40,7 @@ def get_inception_score(images, splits=10):
         for i in range(n_batches):
             if i % 100 == 0:
                 sys.stdout.write("\r[Running] [{}/{}] ...   ".format(i * bs, len(inps)))
+                sys.stdout.flush()
             inp = []
             for j in range(bs):
                 img = scipy.misc.imread(inps[i*bs+j])
@@ -45,7 +48,7 @@ def get_inception_score(images, splits=10):
                 inp.append(img)
             #inp = inps[(i * bs):min((i + 1) * bs, len(inps))]
             inp = np.concatenate(inp, 0)
-            pred = sess.run(softmax, {'ExpandDims:0': inp})
+            pred = sess.run(softmax, {'InputTensor:0': inp})
             preds.append(pred)
         preds = np.concatenate(preds, 0)
         scores = []
@@ -57,48 +60,52 @@ def get_inception_score(images, splits=10):
         print()
         return np.mean(scores), np.std(scores)
 
-
 # This function is called automatically.
 def _init_inception():
-    global softmax
-    if not os.path.exists(MODEL_DIR):
-        os.makedirs(MODEL_DIR)
-    filename = DATA_URL.split('/')[-1]
-    filepath = os.path.join(MODEL_DIR, filename)
-    if not os.path.exists(filepath):
-        def _progress(count, block_size, total_size):
-            sys.stdout.write('\r>> Downloading %s %.1f%%' % (filename, float(count * block_size) / float(total_size) * 100.0))
-            sys.stdout.flush()
-        filepath, _ = urllib.request.urlretrieve(DATA_URL, filepath, _progress)
-        print()
-        statinfo = os.stat(filepath)
-        print('[Model] Succesfully downloaded', filename, statinfo.st_size, 'bytes.')
-    tarfile.open(filepath, 'r:gz').extractall(MODEL_DIR)
-    with tf.gfile.FastGFile(os.path.join(
-            MODEL_DIR, 'classify_image_graph_def.pb'), 'rb') as f:
-        graph_def = tf.GraphDef()
-        graph_def.ParseFromString(f.read())
-        _ = tf.import_graph_def(graph_def, name='')
-    # Works with an arbitrary minibatch size.
-    config = tf.ConfigProto()
-    config.gpu_options.allow_growth = True
-    with tf.Session(config=config) as sess:
-        pool3 = sess.graph.get_tensor_by_name('pool_3:0')
-        ops = pool3.graph.get_operations()
-        for op_idx, op in enumerate(ops):
-            for o in op.outputs:
-                shape = o.get_shape()
-                shape = [s.value for s in shape]
-                new_shape = []
-                for j, s in enumerate(shape):
-                    if s == 1 and j == 0:
-                        new_shape.append(None)
-                    else:
-                        new_shape.append(s)
-                o.set_shape(tf.TensorShape(new_shape))
-        w = sess.graph.get_operation_by_name("softmax/logits/MatMul").inputs[1]
-        logits = tf.matmul(tf.squeeze(pool3, [1, 2]), w)
-        softmax = tf.nn.softmax(logits)
+  global softmax
+  if not os.path.exists(MODEL_DIR):
+    os.makedirs(MODEL_DIR)
+  filename = DATA_URL.split('/')[-1]
+  filepath = os.path.join(MODEL_DIR, filename)
+  if not os.path.exists(filepath):
+    def _progress(count, block_size, total_size):
+      sys.stdout.write('\r>> Downloading %s %.1f%%' % (
+          filename, float(count * block_size) / float(total_size) * 100.0))
+      sys.stdout.flush()
+    filepath, _ = urllib.request.urlretrieve(DATA_URL, filepath, _progress)
+    print()
+    statinfo = os.stat(filepath)
+    print('Succesfully downloaded', filename, statinfo.st_size, 'bytes.')
+  tarfile.open(filepath, 'r:gz').extractall(MODEL_DIR)
+  with tf.gfile.FastGFile(os.path.join(
+      MODEL_DIR, 'classify_image_graph_def.pb'), 'rb') as f:
+    graph_def = tf.GraphDef()
+    graph_def.ParseFromString(f.read())
+    # Import model with a modification in the input tensor to accept arbitrary
+    # batch size.
+    input_tensor = tf.placeholder(tf.float32, shape=[None, None, None, 3],
+                                  name='InputTensor')
+    _ = tf.import_graph_def(graph_def, name='',
+                            input_map={'ExpandDims:0':input_tensor})
+  # Works with an arbitrary minibatch size.
+  with tf.Session() as sess:
+    pool3 = sess.graph.get_tensor_by_name('pool_3:0')
+    ops = pool3.graph.get_operations()
+    for op_idx, op in enumerate(ops):
+        for o in op.outputs:
+            shape = o.get_shape()
+            shape = [s.value for s in shape]
+            new_shape = []
+            for j, s in enumerate(shape):
+                if s == 1 and j == 0:
+                    new_shape.append(None)
+                else:
+                    new_shape.append(s)
+            o.set_shape(tf.TensorShape(new_shape))
+    w = sess.graph.get_operation_by_name("softmax/logits/MatMul").inputs[1]
+    logits = tf.matmul(tf.squeeze(pool3, [1, 2]), w)
+    softmax = tf.nn.softmax(logits)
+
 
 
 if softmax is None:
