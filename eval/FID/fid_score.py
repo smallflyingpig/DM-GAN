@@ -101,7 +101,7 @@ def get_activations(images, model, batch_size=64, dims=2048, cuda=False, verbose
     #for i in range(n_batches):
     for i, batch in enumerate(images):
         #batch = batch[0]
-        if verbose and (batch % (n_batches//10) == 0):
+        if verbose and (i % (n_batches//10) == 0):
             sys.stdout.write('\rPropagating batch %d/%d' % (i + 1, n_batches))
             sys.stdout.flush()
         #import ipdb
