@@ -16,6 +16,7 @@ import scipy.misc
 import math
 import sys
 import time
+import argparse
 
 from tensorflow.python.platform.tf_logging import flush
 
@@ -149,11 +150,21 @@ def inception_score(path):
     return mean, std
 
 
+def get_parser():
+    parser = argparse.ArgumentParser("")
+    parser.add_argument("--gpu", type=int, default=0, help="")
+    parser.add_argument("--image_folder", type=str, default="", help="")
+    args = parser.parse_args()
+    return args
+
+
 if __name__ == "__main__":
     os.environ['CUDA_VISIBLE_DEVICES'] = '0'
     # Command: CUDA_VISIBLE_DEVICES=1 python xxx.py path
     # Image Folder Path
-    path = sys.argv[1]  #
+    args = get_parser()
+    path = args.image_folder
+    
     images = load_data(path)
     print('.......')
     mean, std = get_inception_score(images)
